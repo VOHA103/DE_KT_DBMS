@@ -1,1 +1,1 @@
-# DE_KT_T-SQL-DBMS-
+# DE_KT_DBMS
