@@ -1,0 +1,275 @@
+﻿----cAU 1 :TẠO DATABASE VÀ INSERT DU LIEU
+--A:
+use master
+go
+
+if exists(select *from sysdatabases where name='QL_XEKHACH')
+drop database QL_XEKHACH
+go
+
+
+
+CREATE DATABASE QL_XEKHACH
+ON PRIMARY 
+(
+	Name=KS_primary,
+	filename='E:\KT_KT_SQL\GD_01\KS_primary.mdf',
+	size=5MB,
+	maxsize=10MB,
+	filegrowth=10%	
+),
+(
+	Name=KS_second1_1,
+	filename='E:\KT_KT_SQL\GD_01\KS_second1_1.ndf',
+	size=3MB,
+	maxsize=5MB,
+	filegrowth=10%	
+),
+(
+	Name=KS_second1_2,
+	filename='E:\KT_KT_SQL\GD_01\KS_second1_2.ndf',
+	size=3MB,
+	maxsize=5MB,
+	filegrowth=10%	
+),
+(
+	Name=KS_second1_3,
+	filename='E:\KT_KT_SQL\GD_01\KS_second1_3.ndf',
+	size=3MB,
+	maxsize=5MB,
+	filegrowth=10%	
+)
+log on
+(
+	Name=KS_log,
+	filename='E:\KT_KT_SQL\GD_01\KS_log.ldf',
+	size=1MB,
+	maxsize=5MB,
+	filegrowth=15%	
+)
+go
+
+USE QL_XEKHACH
+GO
+--B:INSERT DATA:
+
+CREATE TABLE XE(
+BIENXE CHAR(10) PRIMARY KEY,
+SOCHO INT
+)
+GO
+
+CREATE TABLE KHACHHANG(
+MAKH CHAR(10) PRIMARY KEY,
+TENKH NVARCHAR(50),
+NGAYSINH DATE,
+DIACHI NVARCHAR(50),
+SODT CHAR(20)
+)
+GO
+
+CREATE TABLE GIOCHAY(
+BIENXE CHAR(10),
+TGKH INT,
+TGKT INT,
+CONSTRAINT  PK_HC PRIMARY KEY(BIENXE,TGKH),
+CONSTRAINT FK_HC_BX FOREIGN KEY (BIENXE) REFERENCES XE(BIENXE)
+)
+GO
+
+CREATE TABLE VE(
+MAVE CHAR(10) PRIMARY KEY,
+MAKH CHAR(10),
+BIENXE CHAR(10),
+NGAYDI DATE,
+GIAVE INT,
+PHUTHU INT,
+KHOILUONG INT,
+CONSTRAINT FK_VE_KH FOREIGN KEY(MAKH) REFERENCES KHACHHANG(MAKH),
+CONSTRAINT FK_VE_XE FOREIGN KEY(BIENXE) REFERENCES XE(BIENXE)
+)
+GO
+
+---INSERT DATA:
+INSERT INTO XE VALUES('BX01',1);
+INSERT INTO XE VALUES('BX02',2);
+INSERT INTO XE VALUES('BX03',3);
+INSERT INTO XE VALUES('BX04',4);
+
+SET DATEFORMAT DMY
+INSERT INTO KHACHHANG VALUES('KH01',N'DUONG DONG DUY','06/12/2001',N'TIEN GIANG','0376880903');
+INSERT INTO KHACHHANG VALUES('KH02',N'HO DUC DUY','07/2/2001',N'BINH DINH','0348770100');
+INSERT INTO KHACHHANG VALUES('KH03',N'VO THI THU HA','10/3/2001',N'BINH DINH','0328090646');
+INSERT INTO KHACHHANG VALUES('KH04',N'NGO THANH HUYEN','10/03/2001',N'QUANG BINH','0387388001');
+
+
+INSERT INTO GIOCHAY VALUES('BX02',5,7);
+INSERT INTO GIOCHAY VALUES('BX03',12,14);
+INSERT INTO GIOCHAY VALUES('BX04',15,17);
+INSERT INTO GIOCHAY VALUES('BX01',7,8);
+
+SET DATEFORMAT DMY
+INSERT INTO VE VALUES('MV01','KH02','BX01','12/6/2020',1300,500,15);
+INSERT INTO VE VALUES('MV02','KH03','BX03','1/8/2020',1800,500,6);
+INSERT INTO VE VALUES('MV03','KH01','BX04','9/2/2020',1200,500,8);
+INSERT INTO VE VALUES('MV04','KH04','BX01','15/9/2020',1900,500,16);
+GO
+--CAU 2: VIET THU TUC VA CURSUR
+--2.a: viết thủ tục truyền vào mã vé,cập nhật phụ thu 50.000 đồng nếu khôpis lượng hành lý ủa khahs hàng từ
+---10kg trở lên ,cấc trường hợp còn lại phụ thu bằng 0.
+--viết lệnh thực thi thủ tục.
+CREATE PROC PS_CAU2A(@MAVE CHAR(10))
+AS
+	--begin
+	--declare @ls int	
+	--set @ls=( SELECT KHOILUONG FROM VE where MAVE=@MAVE and KHOILUONG=@ls)
+	--		if(@ls>10)
+	--		update VE set PHUTHU=50000
+	--		else if(@ls>10)
+	--		update VE set PHUTHU=0
+			
+	--end
+		
+GO
+--THUC THI PROC:
+EXEC PS_CAU2A 'MV01'
+--XOA PROC
+DROP PROC PS_CAU2A
+
+SELECT*FROM VE
+GO
+--2.b:viết cursor in ra danh sách vé gồm các thông tin:
+--mã vé và thành tiền của vé(thành tiền = giá vé+ phụ thu).(yc: dùng lệnh print để in thông tin trong cursor)
+
+DECLARE CS_CAU2B CURSOR
+
+FOR SELECT MAVE FROM VE 
+OPEN CS_CAU2B
+
+DECLARE @MAVE CHAR(10)
+	PRINT N'DANH SACH VE'
+	PRINT N'-----------------'
+
+FETCH NEXT FROM CS_CAU2B INTO @MAVE
+WHILE(@@FETCH_STATUS=0)
+BEGIN 
+	DECLARE @TT INT 
+	SELECT  @TT=  GIAVE+PHUTHU  FROM VE WHERE MAVE=@MAVE
+	PRINT @MAVE +CONVERT(CHAR(5), @TT)
+	FETCH NEXT FROM CS_CAU2B INTO @MAVE
+	
+END
+CLOSE CS_CAU2B
+DEALLOCATE CS_CAU2B
+
+go
+
+
+---cau 3:
+
+--3.a: sao lưu cơ sở dữ liệu theo lịch sau đây:
+--t1: full backup
+BACKUP DATABASE QL_XEKHACH
+TO DISK='E:\KT_KT_SQL\GD_01\XEKH_FULL.bak'
+WITH INIT
+GO
+---INSERT KHACHHANG
+SET DATEFORMAT DMY
+INSERT INTO KHACHHANG VALUES('KH13',N'NGO THANH HUYEN','10/03/2001',N'QUANG BINH','0387388001');
+
+--t2:log backup
+BACKUP LOG QL_XEKHACH
+TO DISK ='E:\KT_KT_SQL\GD_01\XEKH_TRAN.trn'
+WITH INIT
+
+
+---INSERT KHACHHANG
+SET DATEFORMAT DMY
+INSERT INTO KHACHHANG VALUES('KH010',N'NGO THANH HUYEN','10/03/2001',N'QUANG BINH','0387388001');
+
+--t3: differential backup
+BACKUP DATABASE QL_XEKHACH
+TO DISK='E:\KT_KT_SQL\GD_01\XEKH_DIFF.bak'
+WITH INIT,DIFFERENTIAL
+GO
+---INSERT KHACHHANG
+SET DATEFORMAT DMY
+INSERT INTO KHACHHANG VALUES('KH011',N'NGO THANH HUYEN','10/03/2001',N'QUANG BINH','0387388001');
+
+--t4 log bakup
+BACKUP LOG QL_XEKHACH
+TO DISK='E:\KT_KT_SQL\GD_01\XEKH_TRAN.trn'
+WITH NO_TRUNCATE
+---INSERT KHACHHANG
+SET DATEFORMAT DMY
+INSERT INTO KHACHHANG VALUES('KH012',N'NGO THANH HUYEN','10/03/2001',N'QUANG BINH','0387388001');
+
+--3.b:hãy viết lệnh phục hồi cơ sở dữ liệu sao cho ít mất dữ liệu nhất .
+--luuw ý :sv tự thêm 1 dòng dữ liệu vào bẳng tour để đảm bảo có sự thay đổi dữ liệu trong data
+
+---KHOI PHUC BAN FULL
+RESTORE DATABASE QL_XEKHACH
+FROM DISK='E:\KT_KT_SQL\GD_01\XEKH_FULL.bak'
+WITH NORECOVERY
+
+GO
+---KHOI PHUC BAN DIFFERENTIAL
+RESTORE DATABASE QL_XEKHACH
+FROM DISK='E:\KT_KT_SQL\GD_01\XEKH_DIFF.bak'
+WITH NORECOVERY
+GO
+--KHOI PHUC BANG LOG KE TU LAN DIFFERENTIAL BACKUP GAN NHAT
+RESTORE DATABASE QL_XEKHACH
+FROM DISK='E:\KT_KT_SQL\GD_01\XEKH_TRAN.trn'
+WITH FILE=1,NORECOVERY
+
+RESTORE DATABASE QL_XEKHACH
+FROM DISK='E:\KT_KT_SQL\GD_01\XEKH_TRAN.trn'
+WITH FILE=2
+GO
+---cau 4:
+--4.a: viết lệnh tạo các tài khoản đăng nhập (login) sau:
+sp_addlogin 'nhanvien1','2001190509'
+go
+sp_addlogin 'khachhang1','2001190508'
+go
+--4.b:viet lenhj tao tai khoan nguoi dug tuog ung voi tai khoang dang nhap
+sp_adduser 'nhanvien1','nhanvien1'
+go
+sp_adduser 'khachhang1','khachhang1'
+go
+--4.c viet lenh tao cac nhom quyen :NHANVIEN,KHAHHANG
+sp_addrole 'NHANVIEN'
+go
+sp_addrole 'KHAHHANG'
+go
+--4.D:VIET LEHH CAP QUYE CHO CAC NHOM QUYEN SAU:
+grant select,INSERT 
+on VE
+to NHANVIEN
+go
+  
+
+grant select
+on VE
+to KHAHHANG
+go
+--4.E:THU HOI QUYEN DOI VOI CAC NHOM QUYEN
+REVOKE UPDATE
+ON XE
+FROM NHANVIEN
+
+REVOKE INSERT
+ON VE
+FROM KHAHHANG
+go
+--4.F:VIET LENH NGUOI DUG VAO NHOM QUYEN 
+---te nhom quye,ten guoidung
+sp_droprolemember 'NHANVIEN','nhanvien1'
+go
+sp_droprolemember 'KHAHHANG','khachhang1'
+go
+
+--cau 5: viet lenh thuc hie 2 giao tac dong thoi P1,p2 và thiết lập mức độ cô lập:
+---nếu P1 đang đọc dữ liệu trê bảng XE đồng thời cho phép P2 thực hiện ghi trên cùng 1 đơ ị dữ liệu.
+--P1:
